@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fintrack-api
+  namespace: fintrack
+  labels:
+    app: fintrack-api
+    app.kubernetes.io/part-of: fintrack-platform
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fintrack-api
+  template:
+    metadata:
+      labels:
+        app: fintrack-api
+    spec:
+      # Wait for Postgres, RabbitMQ, and Redis to be ready before starting
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done"]
+        - name: wait-for-rabbitmq
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z rabbitmq 5672; do echo waiting for rabbitmq; sleep 2; done"]
+      containers:
+        - name: fintrack-api
+          image: your-registry/fintrack-api:1.0.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            # --- PostgreSQL ---
+            - name: DB_URL
+              value: "jdbc:postgresql://postgres:5432/fintrack_api"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: db-api-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: db-api-password
+
+            # --- RabbitMQ ---
+            # Override SSL settings from application.yml (ssl.enabled=true, port=5671)
+            # In-cluster RabbitMQ uses plain AMQP on 5672
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: rabbitmq-username
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: rabbitmq-password
+            - name: SPRING_RABBITMQ_PORT
+              value: "5672"
+            - name: SPRING_RABBITMQ_SSL_ENABLED
+              value: "false"
+
+            # --- Redis (dedup) ---
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+
+            # --- JWT ---
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: jwt-secret
+
+            # --- JVM tuning for virtual threads (Java 21) ---
+            - name: JAVA_TOOL_OPTIONS
+              value: "-XX:+UseZGC -Xms256m -Xmx512m"
+
+          resources:
+            requests:
+              cpu: 250m
+              memory: 384Mi
+            limits:
+              cpu: 1000m
+              memory: 768Mi
+
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 5
+
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 3
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fintrack-api
+  namespace: fintrack
+  labels:
+    app: fintrack-api
+spec:
+  selector:
+    app: fintrack-api
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
