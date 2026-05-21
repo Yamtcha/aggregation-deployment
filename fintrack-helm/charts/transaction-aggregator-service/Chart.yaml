@@ -1,0 +1,11 @@
+apiVersion: v2
+name: transaction-aggregator-service
+description: Transaction Aggregator — deployment and service
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - fintrack
+  - transactions
+maintainers:
+  - name: Yamtcha

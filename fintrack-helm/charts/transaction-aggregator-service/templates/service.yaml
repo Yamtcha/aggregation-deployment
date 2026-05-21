@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-aggregator
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: transaction-aggregator
+    {{- include "transaction-aggregator-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: transaction-aggregator
+  ports:
+    - name: http
+      port: {{ .Values.app.service.port }}
+      targetPort: {{ .Values.app.service.port }}

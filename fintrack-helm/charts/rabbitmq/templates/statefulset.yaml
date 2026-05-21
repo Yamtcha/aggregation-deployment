@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-pvc
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: rabbitmq
+    app.kubernetes.io/part-of: fintrack-platform
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ .Values.rabbitmq.storageClassName }}
+  resources:
+    requests:
+      storage: {{ .Values.rabbitmq.storage }}
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: rabbitmq
+    app.kubernetes.io/part-of: fintrack-platform
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  serviceName: rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: {{ printf "%s:%s" .Values.rabbitmq.image.repository .Values.rabbitmq.image.tag }}
+          imagePullPolicy: {{ .Values.rabbitmq.image.pullPolicy }}
+          ports:
+            - name: amqp
+              containerPort: 5672
+            - name: management
+              containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: RABBITMQ_USERNAME
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: RABBITMQ_PASSWORD
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+          resources:
+            {{- toYaml .Values.rabbitmq.resources | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "ping"]
+            initialDelaySeconds: {{ .Values.rabbitmq.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rabbitmq.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.rabbitmq.probes.readiness.timeoutSeconds }}
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "status"]
+            initialDelaySeconds: {{ .Values.rabbitmq.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.rabbitmq.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.rabbitmq.probes.liveness.timeoutSeconds }}
+      volumes:
+        - name: rabbitmq-data
+          persistentVolumeClaim:
+            claimName: rabbitmq-pvc

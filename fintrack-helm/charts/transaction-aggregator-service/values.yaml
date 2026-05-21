@@ -1,0 +1,53 @@
+# ──────────────────────────────────────────────
+# transaction-aggregator-service — Production-Grade Values
+# ──────────────────────────────────────────────
+
+global:
+  namespace: fintrack
+  imageRegistry: 891377172928.dkr.ecr.eu-west-1.amazonaws.com
+
+# ── Image Pull Configuration ───────────────────
+imagePullSecrets:
+  - name: ecr-secret
+
+# ── App ────────────────────────────────────────
+app:
+  replicaCount: 1
+
+  image:
+    repository: transaction-aggregator-service
+    tag: v7.0.0
+    pullPolicy: Always
+
+  service:
+    port: 8083
+
+  jvmOptions: "-XX:+UseZGC -Xms256m -Xmx512m"
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: 1000m
+      memory: 768Mi
+
+  probes:
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 5
+
+    liveness:
+      initialDelaySeconds: 60
+      periodSeconds: 20
+      failureThreshold: 3
+
+# ── Config (shared ConfigMap from platform layer) ─
+config:
+  dbHost: postgres.fintrack.svc.cluster.local
+  dbPort: "5432"
+  aggregatorDbName: fintrack_agg
+
+  rabbitmqHost: rabbitmq.fintrack.svc.cluster.local
+  rabbitmqPort: "5672"

@@ -1,0 +1,80 @@
+# ──────────────────────────────────────────────
+# fintrack-service — Production-Grade Values
+# ──────────────────────────────────────────────
+global:
+  namespace: fintrack
+  imageRegistry: 891377172928.dkr.ecr.eu-west-1.amazonaws.com
+
+# ── Image Pull Configuration ───────────────────
+imagePullSecrets:
+  - name: ecr-secret
+
+# ── App ────────────────────────────────────────
+app:
+  replicaCount: 1
+
+  image:
+    repository: fintrack-service
+    tag: v10.0.0
+    pullPolicy: Always
+
+  service:
+    port: 8080
+
+  jvmOptions: "-XX:+UseZGC -Xms256m -Xmx512m"
+
+  ingestion:
+    adaptersEnabled: "CREDIT,DEBIT,LOANS,INVESTMENTS"
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 384Mi
+    limits:
+      cpu: 1000m
+      memory: 768Mi
+
+  probes:
+    readiness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 5
+    liveness:
+      initialDelaySeconds: 60
+      periodSeconds: 20
+      failureThreshold: 3
+
+# ── ConfigMap ──────────────────────────────────
+config:
+  dbHost: postgres.fintrack.svc.cluster.local
+  dbPort: "5432"
+  fintrackApiDbName: fintrack_api
+  aggregatorDbName: fintrack_agg
+
+  rabbitmqHost: rabbitmq.fintrack.svc.cluster.local
+  rabbitmqPort: "5672"
+
+# ── External Secrets ──────────────────────────
+externalSecrets:
+  enabled: true
+  provider: aws
+  awsRegion: eu-west-1
+  secretStore:
+    name: aws-secrets-manager
+    kind: SecretStore
+  refreshInterval: 1h
+  target:
+    name: fintrack-secrets
+    creationPolicy: Owner
+  remoteSecret:
+    key: fintrack-analyses-secrets
+
+# ── Ingress ───────────────────────────────────
+ingress:
+  enabled: true
+  className: nginx
+  host: fintrack.local
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+
+  transactionAggregatorPort: 8083

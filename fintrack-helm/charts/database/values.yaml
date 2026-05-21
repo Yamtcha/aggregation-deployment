@@ -1,0 +1,34 @@
+# ──────────────────────────────────────────────
+# database — Default Values
+# ──────────────────────────────────────────────
+
+global:
+  namespace: fintrack
+
+# ── PostgreSQL ────────────────────────────────
+postgres:
+  image:
+    repository: postgres
+    tag: 16-alpine
+    pullPolicy: IfNotPresent
+  storage: 5Gi
+  storageClassName: standard
+  databases:
+    api: fintrack_api
+    aggregator: fintrack_agg
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  probes:
+    readiness:
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 5
+    liveness:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5

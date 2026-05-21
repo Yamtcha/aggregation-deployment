@@ -1,0 +1,11 @@
+apiVersion: v2
+name: rabbitmq
+description: RabbitMQ — statefulset, pvc, and service
+type: application
+version: 1.0.0
+appVersion: "3.13"
+keywords:
+  - fintrack
+  - rabbitmq
+maintainers:
+  - name: Yamkela Venfolo

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: fintrack-api
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: fintrack-api
+    {{- include "fintrack-service.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: fintrack-api
+  ports:
+    - name: http
+      port: {{ .Values.app.service.port }}
+      targetPort: {{ .Values.app.service.port }}

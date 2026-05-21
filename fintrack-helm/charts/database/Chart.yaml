@@ -1,0 +1,11 @@
+apiVersion: v2
+name: database
+description: PostgreSQL — statefulset, service, and init scripts
+type: application
+version: 1.0.0
+appVersion: "16"
+keywords:
+  - fintrack
+  - postgres
+maintainers:
+  - name: Yamtcha

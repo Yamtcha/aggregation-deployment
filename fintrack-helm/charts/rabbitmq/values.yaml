@@ -1,0 +1,31 @@
+# ──────────────────────────────────────────────
+# rabbitmq — Default Values
+# ──────────────────────────────────────────────
+
+global:
+  namespace: fintrack
+
+# ── RabbitMQ ──────────────────────────────────
+rabbitmq:
+  image:
+    repository: rabbitmq
+    tag: 3.13-management-alpine
+    pullPolicy: IfNotPresent
+  storage: 2Gi
+  storageClassName: standard
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  probes:
+    readiness:
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 5
+    liveness:
+      initialDelaySeconds: 60
+      periodSeconds: 30
+      timeoutSeconds: 10

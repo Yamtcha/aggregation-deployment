@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fintrack-api
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: fintrack-api
+    {{- include "fintrack-service.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.app.replicaCount }}
+  selector:
+    matchLabels:
+      app: fintrack-api
+  template:
+    metadata:
+      labels:
+        app: fintrack-api
+    spec:
+      imagePullSecrets:
+        {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      initContainers:
+        {{- include "fintrack-service.initContainers" . | nindent 8 }}
+      containers:
+        - name: fintrack-api
+          image: {{ include "fintrack-service.image" . }}
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.app.service.port }}
+          env:
+            # ── PostgreSQL ──────────────────────────────────
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: DB_URL
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: DB_PASSWORD
+            # ── RabbitMQ ────────────────────────────────────
+            {{- include "fintrack-service.rabbitmqEnv" . | nindent 12 }}
+            # ── API Key ─────────────────────────────────────
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: fintrack-secrets
+                  key: API_KEY
+            # ── Ingestion ────────────────────────────────────
+            - name: FINTRACK_INGESTION_ADAPTERS_ENABLED
+              value: {{ .Values.app.ingestion.adaptersEnabled | quote }}
+            # ── JVM ─────────────────────────────────────────
+            - name: JAVA_TOOL_OPTIONS
+              value: {{ .Values.app.jvmOptions | quote }}
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: {{ .Values.app.service.port }}
+            initialDelaySeconds: {{ .Values.app.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.app.probes.readiness.periodSeconds }}
+            failureThreshold: {{ .Values.app.probes.readiness.failureThreshold }}
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: {{ .Values.app.service.port }}
+            initialDelaySeconds: {{ .Values.app.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.app.probes.liveness.periodSeconds }}
+            failureThreshold: {{ .Values.app.probes.liveness.failureThreshold }}
